@@ -1,21 +1,15 @@
 package httpArchive
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/woodsaj/chrome_perf_to_har/notifications"
 	"log"
 	"net/url"
-	"sort"
 	"strings"
 	"time"
 )
-
-type Notifications []*notifications.ChromeNotification
-
-func (a Notifications) Len() int           { return len(a) }
-func (a Notifications) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a Notifications) Less(i, j int) bool { return a[i].Timestamp.Before(a[j].Timestamp) }
 
 func parseHeaders(headers map[string]string) []*Header {
 	h := make([]*Header, 0)
@@ -28,8 +22,11 @@ func parseHeaders(headers map[string]string) []*Header {
 	return h
 }
 
-func CreateHARFromNotifications(events Notifications) (*HAR, error) {
-	sort.Sort(events)
+func EpochToTime(epoch float64) time.Time {
+	return time.Unix(0, int64(epoch*1000)*int64(time.Microsecond))
+}
+
+func CreateHARFromNotifications(events []*notifications.ChromeNotification) (*HAR, error) {
 	har := HAR{
 		Log: Log{
 			Version: "1.2",
@@ -42,38 +39,58 @@ func CreateHARFromNotifications(events Notifications) (*HAR, error) {
 		switch e.Method {
 		case "Page.frameStartedLoading":
 			// new page being loaded.
-			har.Log.Pages = append(har.Log.Pages, &Page{Id: har.CurrentPageId()})
-		case "Network.requstWillBeSent":
+			page := Page{
+				StartedDateTime: e.Timestamp,
+				PageTimings:     &PageTimings{},
+			}
+			har.Log.Pages = append(har.Log.Pages, &page)
+			page.Id = har.CurrentPageId()
+		case "Network.requestWillBeSent":
+			if len(har.Log.Pages) < 1 {
+				log.Fatal("Sending request object, but frame not started.")
+			}
 			//new HTTP request
 			params := notifications.NetworkRequestWillBeSent{}
 			err := json.Unmarshal(e.Params, &params)
 			if err != nil {
 				log.Fatal(err)
 			}
+
 			req := &Request{
-				Method: params.Request.Method,
-				Url:    params.Request.Url,
+				Method:    params.Request.Method,
+				Url:       params.Request.Url,
+				Timestamp: params.Timestamp,
 			}
 
 			req.BodySize = len(params.Request.PostData)
 
 			req.ParseQueryString()
 			entry := Entry{
-				StartedDateTime: params.Timestamp, //epoch float64, eg 1440589909.59248
+				StartedDateTime: EpochToTime(params.WallTime), //epoch float64, eg 1440589909.59248
 				RequestId:       params.RequestId,
 				Pageref:         har.CurrentPageId(),
 				Request:         req,
 			}
 
 			//TODO: check if ther is a redirectResponse
+			if params.RedirectResponse != nil {
+
+			}
 
 			har.Log.Entries = append(har.Log.Entries, &entry)
 
+			page := har.CurrentPage()
 			// if this is the primary page, set the Page.Title to the request URL
-			if har.Log.Pages[len(har.Log.Pages)-1].Title == "" {
-				har.Log.Pages[len(har.Log.Pages)-1].Title = req.Url
+			if page.Title == "" {
+				page.Title = req.Url
+				page.Timestamp = params.Timestamp
 			}
+
 		case "Network.responseReceived":
+			if len(har.Log.Pages) < 1 {
+				//we havent loaded any pages yet.
+				continue
+			}
 			params := notifications.NetworkResponseReceived{}
 			err := json.Unmarshal(e.Params, &params)
 			if err != nil {
@@ -81,13 +98,13 @@ func CreateHARFromNotifications(events Notifications) (*HAR, error) {
 			}
 			entry := har.GetEntryByRequestId(params.RequestId)
 			if entry == nil {
-				log.Fatal("got a response event with no mathcing request event.")
+				log.Fatal("got a response event with no matching request event.")
 			}
 
 			//Update the entry.Request with the new data available in this event.
-			entry.Request.Headers = parseHeaders(params.Response.RequestHeaders)
-			entry.Request.HeaderSize = len(params.Response.RequestHeadersText)
 			entry.Request.HttpVersion = params.Response.Protocol
+			entry.Request.Headers = parseHeaders(params.Response.RequestHeaders)
+			entry.Request.SetHeadersSize()
 			entry.Request.ParseCookies()
 
 			//create the entry.Response object
@@ -96,9 +113,14 @@ func CreateHARFromNotifications(events Notifications) (*HAR, error) {
 				StatusText:  params.Response.StatusText,
 				HttpVersion: entry.Request.HttpVersion,
 				Headers:     parseHeaders(params.Response.Headers),
-				HeaderSize:  len(params.Response.HeadersText),
+				Timestamp:   params.Timestamp,
 			}
+			resp.SetHeadersSize()
 			entry.Response = resp
+
+			entry.Response.Content = &ResponseContent{
+				MimeType: params.Response.MimeType,
+			}
 
 			blocked := params.Response.Timing["dnsStart"]
 			if blocked < 0.0 {
@@ -135,6 +157,67 @@ func CreateHARFromNotifications(events Notifications) (*HAR, error) {
 			}
 			entry.Timings = timings
 
+		case "Network.dataReceived":
+			if len(har.Log.Pages) < 1 {
+				//we havent loaded any pages yet.
+				continue
+			}
+			params := notifications.NetworkDataReceived{}
+			err := json.Unmarshal(e.Params, &params)
+			if err != nil {
+				log.Fatal(err)
+			}
+			entry := har.GetEntryByRequestId(params.RequestId)
+			if entry == nil {
+				log.Fatal("got a response event with no matching request event.")
+			}
+
+			entry.Response.Content.Size += params.DataLength
+
+		case "Network.loadingFinished":
+			if len(har.Log.Pages) < 1 {
+				//we havent loaded any pages yet.
+				continue
+			}
+			params := notifications.NetworkLoadingFinished{}
+			err := json.Unmarshal(e.Params, &params)
+			if err != nil {
+				log.Fatal(err)
+			}
+			entry := har.GetEntryByRequestId(params.RequestId)
+			if entry == nil {
+				log.Fatal("got a response event with no matching request event.")
+			}
+			entry.Response.BodySize = params.EncodedDataLength - int64(entry.Response.HeaderSize)
+			entry.Response.Content.Compression = entry.Response.Content.Size - entry.Response.BodySize
+			entry.Time = (params.Timestamp - entry.Request.Timestamp) * 1000
+			entry.Timings.Receive = (params.Timestamp - entry.Response.Timestamp) * 1000.00
+
+		case "Page.loadEventFired":
+			if len(har.Log.Pages) < 1 {
+				//we havent loaded any pages yet.
+				continue
+			}
+			params := notifications.PageLoadEventFired{}
+			err := json.Unmarshal(e.Params, &params)
+			if err != nil {
+				log.Fatal(err)
+			}
+			page := har.CurrentPage()
+			page.PageTimings.OnLoad = int64((params.Timestamp - page.Timestamp) * 1000)
+
+		case "Page.domContentEventFired":
+			if len(har.Log.Pages) < 1 {
+				//we havent loaded any pages yet.
+				continue
+			}
+			params := notifications.PageDomContentEventFired{}
+			err := json.Unmarshal(e.Params, &params)
+			if err != nil {
+				log.Fatal(err)
+			}
+			page := har.CurrentPage()
+			page.PageTimings.OnContentLoad = int64((params.Timestamp - page.Timestamp) * 1000)
 		}
 
 	}
@@ -147,6 +230,13 @@ type HAR struct {
 
 func (h *HAR) CurrentPageId() string {
 	return fmt.Sprintf("page_%d", len(h.Log.Pages))
+}
+
+func (h *HAR) CurrentPage() *Page {
+	if len(h.Log.Pages) < 1 {
+		return nil
+	}
+	return h.Log.Pages[len(h.Log.Pages)-1]
 }
 
 func (h *HAR) GetEntryByRequestId(id string) *Entry {
@@ -166,14 +256,20 @@ type Log struct {
 }
 
 type Page struct {
-	StartedDateTime float64            `json:"startedDateTime"`
-	Id              string             `json:"id"`
-	Title           string             `json:"title"`
-	PageTimings     map[string]float64 `json:"pageTimings"`
+	StartedDateTime time.Time    `json:"startedDateTime"`
+	Id              string       `json:"id"`
+	Title           string       `json:"title"`
+	PageTimings     *PageTimings `json:"pageTimings"`
+	Timestamp       float64      `json:"-"`
+}
+
+type PageTimings struct {
+	OnContentLoad int64 `json:"onContentLoad"`
+	OnLoad        int64 `json:"onLoad"`
 }
 
 type Entry struct {
-	StartedDateTime float64                `json:"startedDateTime"`
+	StartedDateTime time.Time              `json:"startedDateTime"`
 	Time            float64                `json:"time"`
 	Request         *Request               `json:"request"`
 	Response        *Response              `json:"response"`
@@ -202,6 +298,7 @@ type Request struct {
 	Cookies     []*Cookie      `json:"cookies"`
 	HeaderSize  int            `json:"headerSize"`
 	BodySize    int            `json:"bodySize"`
+	Timestamp   float64        `json:"-"`
 }
 
 func (r *Request) ParseCookies() {
@@ -234,6 +331,21 @@ func (r *Request) ParseQueryString() {
 	}
 }
 
+func (r *Request) SetHeadersSize() {
+	var b bytes.Buffer
+	reqUrl, err := url.Parse(r.Url)
+	if err != nil {
+		log.Fatal("unable to parse request URL")
+	}
+
+	b.Write([]byte(fmt.Sprintf("%s %s %s\r\n", r.Method, reqUrl.RequestURI(), r.HttpVersion)))
+	for _, h := range r.Headers {
+		b.Write([]byte(fmt.Sprintf("%s: %s\r\n", h.Name, h.Value)))
+	}
+	b.Write([]byte("\r\n"))
+	r.HeaderSize = b.Len()
+}
+
 type Response struct {
 	Status      int              `json:"status"`
 	StatusText  string           `json:"statusText"`
@@ -243,12 +355,23 @@ type Response struct {
 	Content     *ResponseContent `json:"content"`
 	RedirectUrl string           `json:"redirectUrl"`
 	HeaderSize  int              `json:"headerSize"`
-	BodySize    int              `json:"bodySize"`
+	BodySize    int64            `json:"bodySize"`
+	Timestamp   float64          `json:"-"`
 }
 
 func (r *Response) ParseCookies() {
 	//TODO: parse the response set-cookies header.
 	return
+}
+
+func (r *Response) SetHeadersSize() {
+	var b bytes.Buffer
+	b.Write([]byte(fmt.Sprintf("%s %d %s\r\n", r.HttpVersion, r.Status, r.StatusText)))
+	for _, h := range r.Headers {
+		b.Write([]byte(fmt.Sprintf("%s: %s\r\n", h.Name, h.Value)))
+	}
+	b.Write([]byte("\r\n"))
+	r.HeaderSize = b.Len()
 }
 
 type Header struct {
@@ -277,6 +400,7 @@ type SetCookie struct {
 }
 
 type ResponseContent struct {
-	Size     int    `json:"size"`
-	MimeType string `json:"mimeType"`
+	Size        int64  `json:"size"`
+	MimeType    string `json:"mimeType"`
+	Compression int64  `json:"compression"`
 }

@@ -1,1 +1,189 @@
-[0.001][SEVERE]: bind() returned an error, errno=98: Address already in use
+[0.999][INFO]: COMMAND InitSession {
+   "desiredCapabilities": {
+      "loggingPrefs": {
+         "browser": "ALL",
+         "driver": "INFO",
+         "performance": "INFO"
+      }
+   },
+   "requiredCapabilities": {
+
+   }
+}
+[0.999][INFO]: Populating Preferences file: {
+   "alternate_error_pages": {
+      "enabled": false
+   },
+   "autofill": {
+      "enabled": false
+   },
+   "browser": {
+      "check_default_browser": false
+   },
+   "distribution": {
+      "import_bookmarks": false,
+      "import_history": false,
+      "import_search_engine": false,
+      "make_chrome_default_for_user": false,
+      "show_welcome_page": false,
+      "skip_first_run_ui": true
+   },
+   "dns_prefetching": {
+      "enabled": false
+   },
+   "profile": {
+      "content_settings": {
+         "pattern_pairs": {
+            "https://*,*": {
+               "media-stream": {
+                  "audio": "Default",
+                  "video": "Default"
+               }
+            }
+         }
+      },
+      "default_content_settings": {
+         "geolocation": 1,
+         "mouselock": 1,
+         "notifications": 1,
+         "popups": 1,
+         "ppapi-broker": 1
+      },
+      "password_manager_enabled": false
+   },
+   "safebrowsing": {
+      "enabled": false
+   },
+   "search": {
+      "suggest_enabled": false
+   },
+   "translate": {
+      "enabled": false
+   }
+}
+[0.999][INFO]: Populating Local State file: {
+   "background_mode": {
+      "enabled": false
+   },
+   "ssl": {
+      "rev_checking": {
+         "enabled": false
+      }
+   }
+}
+[1.000][INFO]: Launching chrome: /opt/google/chrome/google-chrome --disable-background-networking --disable-client-side-phishing-detection --disable-component-update --disable-default-apps --disable-hang-monitor --disable-prompt-on-repost --disable-sync --disable-web-resources --enable-logging --ignore-certificate-errors --load-extension=/tmp/.com.google.Chrome.PXjT1R/internal --log-level=0 --metrics-recording-only --no-first-run --password-store=basic --remote-debugging-port=12406 --safebrowsing-disable-auto-update --safebrowsing-disable-download-protection --test-type=webdriver --use-mock-keychain --user-data-dir=/tmp/.com.google.Chrome.VsvF8t data:,
+[1.308][INFO]: RESPONSE InitSession {
+   "acceptSslCerts": true,
+   "applicationCacheEnabled": false,
+   "browserConnectionEnabled": false,
+   "browserName": "chrome",
+   "chrome": {
+      "userDataDir": "/tmp/.com.google.Chrome.VsvF8t"
+   },
+   "cssSelectorsEnabled": true,
+   "databaseEnabled": false,
+   "handlesAlerts": true,
+   "hasTouchScreen": false,
+   "javascriptEnabled": true,
+   "locationContextEnabled": true,
+   "mobileEmulationEnabled": false,
+   "nativeEvents": true,
+   "platform": "Linux",
+   "rotatable": false,
+   "takesHeapSnapshot": true,
+   "takesScreenshot": true,
+   "version": "44.0.2403.157",
+   "webStorageEnabled": true
+}
+[1.317][INFO]: COMMAND Navigate {
+   "url": "https://www.raintank.io"
+}
+[1.317][INFO]: Waiting for pending navigations...
+[1.317][INFO]: Done waiting for pending navigations
+[1.351][INFO]: Waiting for pending navigations...
+[5.772][INFO]: Done waiting for pending navigations
+[5.773][INFO]: RESPONSE Navigate
+[5.773][INFO]: COMMAND GetLog {
+   "type": "performance"
+}
+[5.774][INFO]: RESPONSE GetLog [ {
+   "level": "INFO",
+   "message": "{\"message\":{\"method\":\"Network.responseReceived\",\"params\":{\"frameId\":\"1.1\",\"loaderId\":\"1.2\",\"requestId\":\"1.1\",\"response\":{\"connectionId\":0,\"connectionReused\":false,\"encodedDataLength\":-1,\"fromDiskCa...",
+   "timestamp": 1440654920098.0
+}, {
+   "level": "INFO",
+   "message": "{\"message\":{\"method\":\"Network.loadingFinished\",\"params\":{\"encodedDataLength\":0,\"requestId\":\"1.1\",\"timestamp\":2314403.307236}},\"webview\":\"807B48E8-0092-4D46-B2D9-0D44C09743CB\"}",
+   "timestamp": 1440654920098.0
+}, {
+   "level": "INFO",
+   "message": "{\"message\":{\"method\":\"Page.frameNavigated\",\"params\":{\"frame\":{\"id\":\"1.1\",\"loaderId\":\"1.2\",\"mimeType\":\"text/plain\",\"securityOrigin\":\"://\",\"url\":\"data:,\"}}},\"webview\":\"807B48E8-0092-4D46-B2D9-0D44C09...",
+   "timestamp": 1440654920098.0
+}, {
+   "level": "INFO",
+   "message": "{\"message\":{\"method\":\"Page.loadEventFired\",\"params\":{\"timestamp\":2314403.317567}},\"webview\":\"807B48E8-0092-4D46-B2D9-0D44C09743CB\"}",
+   "timestamp": 1440654920100.0
+}, {
+   "level": "INFO",
+   "message": "{\"message\":{\"method\":\"Page.frameStoppedLoading\",\"params\":{\"frameId\":\"1.1\"}},\"webview\":\"807B48E8-0092-4D46-B2D9-0D44C09743CB\"}",
+   "timestamp": 1440654920100.0
+}, {
+   "level": "INFO",
+   "message": "{\"message\":{\"method\":\"Page.domContentEventFired\",\"params\":{\"timestamp\":2314403.317724}},\"webview\":\"807B48E8-0092-4D46-B2D9-0D44C09743CB\"}",
+   "timestamp": 1440654920100.0
+}, {
+   "level": "INFO",
+   "message": "{\"message\":{\"method\":\"Page.frameStartedLoading\",\"params\":{\"frameId\":\"1.1\"}},\"webview\":\"807B48E8-0092-4D46-B2D9-0D44C09743CB\"}",
+   "timestamp": 1440654920142.0
+}, {
+   "level": "INFO",
+   "message": "{\"message\":{\"method\":\"Network.requestWillBeSent\",\"params\":{\"documentURL\":\"https://www.raintank.io/\",\"frameId\":\"1.1\",\"initiator\":{\"type\":\"other\"},\"loaderId\":\"1.2\",\"request\":{\"headers\":{\"Accept\":\"tex...",
+   "timestamp": 1440654920143.0
+}, {
+   "level": "INFO",
+   "message": "{\"message\":{\"method\":\"Network.responseReceived\",\"params\":{\"frameId\":\"1.1\",\"loaderId\":\"1.2\",\"requestId\":\"1.1\",\"response\":{\"connectionId\":24,\"connectionReused\":false,\"encodedDataLength\":-1,\"fromDiskC...",
+   "timestamp": 1440654921748.0
+}, {
+   "level": "INFO",
+   "message": "{\"message\":{\"method\":\"Network.dataReceived\",\"params\":{\"dataLength\":12020,\"encodedDataLength\":4096,\"requestId\":\"1.1\",\"timestamp\":2314404.970061}},\"webview\":\"807B48E8-0092-4D46-B2D9-0D44C09743CB\"}",
+   "timestamp": 1440654921753.0
+}, {
+   "level": "INFO",
+   "message": "{\"message\":{\"method\":\"Page.frameNavigated\",\"params\":{\"frame\":{\"id\":\"1.1\",\"loaderId\":\"1.2\",\"mimeType\":\"text/html\",\"securityOrigin\":\"https://www.raintank.io\",\"url\":\"https://www.raintank.io/\"}}},\"webv...",
+   "timestamp": 1440654921753.0
+}, {
+   "level": "INFO",
+   "message": "{\"message\":{\"method\":\"Network.dataReceived\",\"params\":{\"dataLength\":4990,\"encodedDataLength\":1026,\"requestId\":\"1.1\",\"timestamp\":2314404.971132}},\"webview\":\"807B48E8-0092-4D46-B2D9-0D44C09743CB\"}",
+   "timestamp": 1440654921753.0
+}, {
+   "level": "INFO",
+   "message": "{\"message\":{\"method\":\"Network.loadingFinished\",\"params\":{\"encodedDataLength\":5122,\"requestId\":\"1.1\",\"timestamp\":2314404.970011}},\"webview\":\"807B48E8-0092-4D46-B2D9-0D44C09743CB\"}",
+   "timestamp": 1440654921754.0
+}, {
+   "level": "INFO",
+   "message": "{\"message\":{\"method\":\"Network.requestWillBeSent\",\"params\":{\"documentURL\":\"https://www.raintank.io/\",\"frameId\":\"1.1\",\"initiator\":{\"lineNumber\":18,\"type\":\"parser\",\"url\":\"https://www.raintank.io/\"},\"l...",
+   "timestamp": 1440654921761.0
+}, {
+   "level": "INFO",
+   "message": "{\"message\":{\"method\":\"Network.requestWillBeSent\",\"params\":{\"documentURL\":\"https://www.raintank.io/\",\"frameId\":\"1.1\",\"initiator\":{\"lineNumber\":101,\"type\":\"parser\",\"url\":\"https://www.raintank.io/\"},\"...",
+   "timestamp": 1440654921761.0
+}, {
+   "level": "INFO",
+   "message": "{\"message\":{\"method\":\"Network.requestWillBeSent\",\"params\":{\"documentURL\":\"https://www.raintank.io/\",\"frameId\":\"1.1\",\"initiator\":{\"lineNumber\":105,\"type\":\"parser\",\"url\":\"https://www.raintank.io/\"},\"...",
+   "timestamp": 1440654921762.0
+}, {
+   "level": "INFO",
+   "message": "{\"message\":{\"method\":\"Network.requestWillBeSent\",\"params\":{\"documentURL\":\"https://www.raintank.io/\",\"frameId\":\"1.1\",\"initiator\":{\"lineNumber\":122,\"type\":\"parser\",\"url\":\"https://www.raintank.io/\"},\"...",
+   "timestamp": 1440654921762.0
+}, {
+   "level": "INFO",
+   "message": "{\"message\":{\"method\":\"Network.requestWillBeSent\",\"params\":{\"documentURL\":\"https://www.raintank.io/\",\"frameId\":\"1.1\",\"initiator\":{\"lineNumber\":144,\"type\":\"parser\",\"url\":\"https://www.raintank.io/\"},\"...",
+   "timestamp": 1440654921762.0
+}, {
+   "level": "INFO",
+   "message": "{\"message\":{\"method\":\"Network.requestWillBeSent\",\"params\":{\"documentURL\":\"https://www.raintank.io/\",\"frameId\":\"1.1\",\"initiator\":{\"lineNumber\":151,\"type\":\"parser\",\"url\":\"https://www.raintank.io/\"},\"...",
+   "timestamp": 1440654921762.0
+}, "..." ]
+[5.787][INFO]: COMMAND Quit {
+
+}
+[5.837][INFO]: RESPONSE Quit

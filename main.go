@@ -2,12 +2,12 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/fedesog/webdriver"
 	"github.com/woodsaj/chrome_perf_to_har/httpArchive"
 	"github.com/woodsaj/chrome_perf_to_har/notifications"
+	"io/ioutil"
 	"log"
-	"time"
+	"net/url"
 )
 
 var logingPrefs = map[string]webdriver.LogLevel{
@@ -24,11 +24,11 @@ type PerfLog struct {
 
 func main() {
 	chromeDriver := webdriver.NewChromeDriver("/usr/local/bin/chromedriver")
-	err := chromeDriver.Start()
+	u, err := url.Parse("http://localhost:9515")
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer chromeDriver.Stop()
+	chromeDriver.SetUrl(u)
 
 	desired := webdriver.Capabilities{"loggingPrefs": logingPrefs}
 	required := webdriver.Capabilities{}
@@ -37,7 +37,12 @@ func main() {
 		log.Fatal(err)
 	}
 	defer session.Delete()
-)
+
+	_, err = session.Log("performance")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	err = session.Url("https://www.raintank.io")
 	if err != nil {
 		log.Fatal(err)
@@ -54,8 +59,16 @@ func main() {
 			log.Fatal(err)
 		}
 		events = append(events, n)
-		fmt.Printf("ts: %s - Domain:%s - Event: %s - Params: %v\n", n.Timestamp, n.Domain, n.Event, n.Params)
+		//fmt.Printf("ts: %s - Domain:%s - Event: %s - Params: %v\n", n.Timestamp, n.Domain, n.Event, n.Params)
 	}
 
-	httpArchive.CreateHARFromNotifications(events)
+	har, err := httpArchive.CreateHARFromNotifications(events)
+	if err != nil {
+		log.Fatal(err)
+	}
+	harJson, err := json.Marshal(har)
+	eventJson, err := json.Marshal(events)
+
+	ioutil.WriteFile("/tmp/chromdriver.har", harJson, 0644)
+	ioutil.WriteFile("/tmp/chromdriver.json", eventJson, 0644)
 }

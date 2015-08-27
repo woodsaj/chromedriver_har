@@ -32,7 +32,7 @@ func NewFromLogEntry(entry webdriver.LogEntry) (*ChromeNotification, error) {
 	}
 	l.Message.Domain = parts[0]
 	l.Message.Event = parts[1]
-	l.Message.Timestamp = time.Unix(0, int64(entry.TimeStamp)*int64(time.Millisecond))
+	l.Message.Timestamp = time.Unix(0, int64(entry.TimeStamp*1000)*int64(time.Microsecond))
 	return l.Message, nil
 }
 
@@ -60,12 +60,34 @@ type NetworkRequestWillBeSent struct {
 	RequestId        string    `json:"requestId"`
 	DocumentUrl      string    `json:"documentUrl"`
 	Request          *Request  `json:"request"`
-	Timestamp        float64   `json:"wallTime"`
+	WallTime         float64   `json:"wallTime"`
+	Timestamp        float64   `json:"timestamp"`
 	RedirectResponse *Response `json:"response"`
 }
 
 type NetworkResponseReceived struct {
 	RequestId string    `json:"requestId"`
-	Timestamp float64   `json:"timesamp"`
+	Timestamp float64   `json:"timestamp"`
 	Response  *Response `json:"response"`
+}
+
+type NetworkDataReceived struct {
+	Timestamp         float64 `json:"timestamp"`
+	RequestId         string  `json:"requestId"`
+	EncodedDataLength int64   `json:"encodedDataLength"`
+	DataLength        int64   `json:"dataLength"`
+}
+
+type NetworkLoadingFinished struct {
+	Timestamp         float64 `json:"timestamp"`
+	RequestId         string  `json:"requestId"`
+	EncodedDataLength int64   `json:"encodedDataLength"`
+}
+
+type PageLoadEventFired struct {
+	Timestamp float64 `json:"timestamp"`
+}
+
+type PageDomContentEventFired struct {
+	Timestamp float64 `json:"timestamp"`
 }
