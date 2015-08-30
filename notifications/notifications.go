@@ -62,7 +62,7 @@ type NetworkRequestWillBeSent struct {
 	Request          *Request  `json:"request"`
 	WallTime         float64   `json:"wallTime"`
 	Timestamp        float64   `json:"timestamp"`
-	RedirectResponse *Response `json:"response"`
+	RedirectResponse *Response `json:"redirectResponse"`
 }
 
 type NetworkResponseReceived struct {

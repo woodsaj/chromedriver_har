@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/json"
 	"github.com/fedesog/webdriver"
-	"github.com/woodsaj/chrome_perf_to_har/httpArchive"
-	"github.com/woodsaj/chrome_perf_to_har/notifications"
+	"github.com/woodsaj/chromedriver_har/httpArchive"
+	"github.com/woodsaj/chromedriver_har/notifications"
 	"io/ioutil"
 	"log"
 	"net/url"
@@ -43,7 +43,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = session.Url("https://www.raintank.io")
+	err = session.Url("https://www.google.com")
 	if err != nil {
 		log.Fatal(err)
 	}

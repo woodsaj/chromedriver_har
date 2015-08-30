@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/woodsaj/chrome_perf_to_har/notifications"
+	"github.com/woodsaj/chromedriver_har/notifications"
 	"log"
 	"net/url"
 	"strings"
@@ -23,7 +23,8 @@ func parseHeaders(headers map[string]string) []*Header {
 }
 
 func EpochToTime(epoch float64) time.Time {
-	return time.Unix(0, int64(epoch*1000)*int64(time.Microsecond))
+	log.Printf("epoch time: %f = %s", epoch, time.Unix(0, int64(epoch*1000)*int64(time.Millisecond)))
+	return time.Unix(0, int64(epoch*1000)*int64(time.Millisecond))
 }
 
 func CreateHARFromNotifications(events []*notifications.ChromeNotification) (*HAR, error) {
@@ -74,7 +75,11 @@ func CreateHARFromNotifications(events []*notifications.ChromeNotification) (*HA
 
 			//TODO: check if ther is a redirectResponse
 			if params.RedirectResponse != nil {
-
+				log.Printf("previous request %s, was redirected.", params.RequestId)
+				lastEntry := har.GetEntryByRequestId(params.RequestId)
+				lastEntry.RequestId = lastEntry.RequestId + "r"
+				ProcessResponse(lastEntry, params.Timestamp, params.RedirectResponse)
+				lastEntry.Response.RedirectUrl = params.Request.Url
 			}
 
 			har.Log.Entries = append(har.Log.Entries, &entry)
@@ -100,62 +105,7 @@ func CreateHARFromNotifications(events []*notifications.ChromeNotification) (*HA
 			if entry == nil {
 				log.Fatal("got a response event with no matching request event.")
 			}
-
-			//Update the entry.Request with the new data available in this event.
-			entry.Request.HttpVersion = params.Response.Protocol
-			entry.Request.Headers = parseHeaders(params.Response.RequestHeaders)
-			entry.Request.SetHeadersSize()
-			entry.Request.ParseCookies()
-
-			//create the entry.Response object
-			resp := &Response{
-				Status:      params.Response.Status,
-				StatusText:  params.Response.StatusText,
-				HttpVersion: entry.Request.HttpVersion,
-				Headers:     parseHeaders(params.Response.Headers),
-				Timestamp:   params.Timestamp,
-			}
-			resp.SetHeadersSize()
-			entry.Response = resp
-
-			entry.Response.Content = &ResponseContent{
-				MimeType: params.Response.MimeType,
-			}
-
-			blocked := params.Response.Timing["dnsStart"]
-			if blocked < 0.0 {
-				blocked = 0.0
-			}
-			dns := params.Response.Timing["dnsEnd"] - params.Response.Timing["dnsStart"]
-			if dns < 0.0 {
-				dns = 0.0
-			}
-			connect := params.Response.Timing["connectEnd"] - params.Response.Timing["connectStart"]
-			if connect < 0.0 {
-				connect = 0.0
-			}
-			send := params.Response.Timing["sendEnd"] - params.Response.Timing["sendStart"]
-			if send < 0.0 {
-				send = 0.0
-			}
-			wait := params.Response.Timing["receiveHeadersEnd"] - params.Response.Timing["sendEnd"]
-			if wait < 0.0 {
-				wait = 0.0
-			}
-			ssl := params.Response.Timing["sslEnd"] - params.Response.Timing["sslStart"]
-			if ssl < 0.0 {
-				ssl = 0.0
-			}
-			timings := &Timings{
-				Blocked: blocked,
-				Dns:     dns,
-				Connect: connect,
-				Send:    send,
-				Wait:    wait,
-				Receive: 0.0,
-				Ssl:     ssl,
-			}
-			entry.Timings = timings
+			ProcessResponse(entry, params.Timestamp, params.Response)
 
 		case "Network.dataReceived":
 			if len(har.Log.Pages) < 1 {
@@ -222,6 +172,64 @@ func CreateHARFromNotifications(events []*notifications.ChromeNotification) (*HA
 
 	}
 	return &har, nil
+}
+
+func ProcessResponse(entry *Entry, timestamp float64, response *notifications.Response) {
+	//Update the entry.Request with the new data available in this event.
+	entry.Request.HttpVersion = response.Protocol
+	entry.Request.Headers = parseHeaders(response.RequestHeaders)
+	entry.Request.SetHeadersSize()
+	entry.Request.ParseCookies()
+
+	//create the entry.Response object
+	resp := &Response{
+		Status:      response.Status,
+		StatusText:  response.StatusText,
+		HttpVersion: entry.Request.HttpVersion,
+		Headers:     parseHeaders(response.Headers),
+		Timestamp:   timestamp,
+	}
+	resp.SetHeadersSize()
+	entry.Response = resp
+
+	entry.Response.Content = &ResponseContent{
+		MimeType: response.MimeType,
+	}
+
+	blocked := response.Timing["dnsStart"]
+	if blocked < 0.0 {
+		blocked = 0.0
+	}
+	dns := response.Timing["dnsEnd"] - response.Timing["dnsStart"]
+	if dns < 0.0 {
+		dns = 0.0
+	}
+	connect := response.Timing["connectEnd"] - response.Timing["connectStart"]
+	if connect < 0.0 {
+		connect = 0.0
+	}
+	send := response.Timing["sendEnd"] - response.Timing["sendStart"]
+	if send < 0.0 {
+		send = 0.0
+	}
+	wait := response.Timing["receiveHeadersEnd"] - response.Timing["sendEnd"]
+	if wait < 0.0 {
+		wait = 0.0
+	}
+	ssl := response.Timing["sslEnd"] - response.Timing["sslStart"]
+	if ssl < 0.0 {
+		ssl = 0.0
+	}
+	timings := &Timings{
+		Blocked: blocked,
+		Dns:     dns,
+		Connect: connect,
+		Send:    send,
+		Wait:    wait,
+		Receive: 0.0,
+		Ssl:     ssl,
+	}
+	entry.Timings = timings
 }
 
 type HAR struct {
