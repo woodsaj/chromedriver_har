@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/woodsaj/chromedriver_har/notifications"
+	"github.com/woodsaj/chromedriver_har/events"
 	"log"
 	"net/url"
 	"strings"
@@ -26,7 +26,7 @@ func EpochToTime(epoch float64) time.Time {
 	return time.Unix(0, int64(epoch*1000)*int64(time.Millisecond))
 }
 
-func CreateHARFromNotifications(events []*notifications.ChromeNotification) (*HAR, error) {
+func CreateHARFromEvents(chromeEvents []*events.ChromeEvent) (*HAR, error) {
 	har := HAR{
 		Log: Log{
 			Version: "1.2",
@@ -35,7 +35,7 @@ func CreateHARFromNotifications(events []*notifications.ChromeNotification) (*HA
 			Entries: make([]*Entry, 0),
 		},
 	}
-	for _, e := range events {
+	for _, e := range chromeEvents {
 		switch e.Method {
 		case "Page.frameStartedLoading":
 			// new page being loaded.
@@ -50,7 +50,7 @@ func CreateHARFromNotifications(events []*notifications.ChromeNotification) (*HA
 				log.Fatal("Sending request object, but frame not started.")
 			}
 			//new HTTP request
-			params := notifications.NetworkRequestWillBeSent{}
+			params := events.NetworkRequestWillBeSent{}
 			err := json.Unmarshal(e.Params, &params)
 			if err != nil {
 				log.Fatal(err)
@@ -94,7 +94,7 @@ func CreateHARFromNotifications(events []*notifications.ChromeNotification) (*HA
 				//we havent loaded any pages yet.
 				continue
 			}
-			params := notifications.NetworkResponseReceived{}
+			params := events.NetworkResponseReceived{}
 			err := json.Unmarshal(e.Params, &params)
 			if err != nil {
 				log.Fatal(err)
@@ -110,7 +110,7 @@ func CreateHARFromNotifications(events []*notifications.ChromeNotification) (*HA
 				//we havent loaded any pages yet.
 				continue
 			}
-			params := notifications.NetworkDataReceived{}
+			params := events.NetworkDataReceived{}
 			err := json.Unmarshal(e.Params, &params)
 			if err != nil {
 				log.Fatal(err)
@@ -127,7 +127,7 @@ func CreateHARFromNotifications(events []*notifications.ChromeNotification) (*HA
 				//we havent loaded any pages yet.
 				continue
 			}
-			params := notifications.NetworkLoadingFinished{}
+			params := events.NetworkLoadingFinished{}
 			err := json.Unmarshal(e.Params, &params)
 			if err != nil {
 				log.Fatal(err)
@@ -146,7 +146,7 @@ func CreateHARFromNotifications(events []*notifications.ChromeNotification) (*HA
 				//we havent loaded any pages yet.
 				continue
 			}
-			params := notifications.PageLoadEventFired{}
+			params := events.PageLoadEventFired{}
 			err := json.Unmarshal(e.Params, &params)
 			if err != nil {
 				log.Fatal(err)
@@ -159,7 +159,7 @@ func CreateHARFromNotifications(events []*notifications.ChromeNotification) (*HA
 				//we havent loaded any pages yet.
 				continue
 			}
-			params := notifications.PageDomContentEventFired{}
+			params := events.PageDomContentEventFired{}
 			err := json.Unmarshal(e.Params, &params)
 			if err != nil {
 				log.Fatal(err)
@@ -172,7 +172,7 @@ func CreateHARFromNotifications(events []*notifications.ChromeNotification) (*HA
 	return &har, nil
 }
 
-func ProcessResponse(entry *Entry, timestamp float64, response *notifications.Response) {
+func ProcessResponse(entry *Entry, timestamp float64, response *events.Response) {
 	//Update the entry.Request with the new data available in this event.
 	entry.Request.HttpVersion = response.Protocol
 	entry.Request.Headers = parseHeaders(response.RequestHeaders)

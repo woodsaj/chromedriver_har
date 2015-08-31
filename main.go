@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/json"
 	"github.com/fedesog/webdriver"
+	"github.com/woodsaj/chromedriver_har/events"
 	"github.com/woodsaj/chromedriver_har/httpArchive"
-	"github.com/woodsaj/chromedriver_har/notifications"
 	"io/ioutil"
 	"log"
 )
@@ -50,17 +50,17 @@ func main() {
 		log.Fatal(err)
 	}
 
-	events, err := notifications.NewFromLogEntries(logs)
+	e, err := events.NewFromLogEntries(logs)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	har, err := httpArchive.CreateHARFromNotifications(events)
+	har, err := httpArchive.CreateHARFromEvents(e)
 	if err != nil {
 		log.Fatal(err)
 	}
 	harJson, err := json.Marshal(har)
-	eventJson, err := json.Marshal(events)
+	eventJson, err := json.Marshal(e)
 
 	ioutil.WriteFile("/tmp/chromdriver.har", harJson, 0644)
 	ioutil.WriteFile("/tmp/chromdriver.json", eventJson, 0644)
