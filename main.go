@@ -7,12 +7,9 @@ import (
 	"github.com/woodsaj/chromedriver_har/notifications"
 	"io/ioutil"
 	"log"
-	"net/url"
 )
 
 var logingPrefs = map[string]webdriver.LogLevel{
-	"driver":      webdriver.LogInfo,
-	"browser":     webdriver.LogAll,
 	"performance": webdriver.LogInfo,
 }
 
@@ -24,11 +21,11 @@ type PerfLog struct {
 
 func main() {
 	chromeDriver := webdriver.NewChromeDriver("/usr/local/bin/chromedriver")
-	u, err := url.Parse("http://localhost:9515")
+	err := chromeDriver.Start()
 	if err != nil {
 		log.Fatal(err)
 	}
-	chromeDriver.SetUrl(u)
+	defer chromeDriver.Stop()
 
 	desired := webdriver.Capabilities{"loggingPrefs": logingPrefs}
 	required := webdriver.Capabilities{}
@@ -52,14 +49,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	events := make([]*notifications.ChromeNotification, 0)
-	for _, l := range logs {
-		n, err := notifications.NewFromLogEntry(l)
-		if err != nil {
-			log.Fatal(err)
-		}
-		events = append(events, n)
-		//fmt.Printf("ts: %s - Domain:%s - Event: %s - Params: %v\n", n.Timestamp, n.Domain, n.Event, n.Params)
+
+	events, err := notifications.NewFromLogEntries(logs)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	har, err := httpArchive.CreateHARFromNotifications(events)

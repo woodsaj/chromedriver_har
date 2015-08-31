@@ -2,16 +2,12 @@ package notifications
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/fedesog/webdriver"
-	"strings"
 	"time"
 )
 
 type ChromeNotification struct {
 	Timestamp time.Time       `json:"-"`
-	Domain    string          `json:"-"`
-	Event     string          `json:"-"`
 	Method    string          `json:"method"`
 	Params    json.RawMessage `json:"params"`
 	WebView   string          `json:"webview"`
@@ -21,19 +17,18 @@ type logWrapper struct {
 	Message *ChromeNotification `json:"message"`
 }
 
-func NewFromLogEntry(entry webdriver.LogEntry) (*ChromeNotification, error) {
-	l := logWrapper{}
-	if err := json.Unmarshal([]byte(entry.Message), &l); err != nil {
-		return nil, err
+func NewFromLogEntries(entries []webdriver.LogEntry) ([]*ChromeNotification, error) {
+	events := make([]*ChromeNotification, 0)
+	for _, entry := range entries {
+		w := logWrapper{}
+		if err := json.Unmarshal([]byte(entry.Message), &w); err != nil {
+			return events, err
+		}
+		w.Message.Timestamp = time.Unix(0, int64(entry.TimeStamp*1000)*int64(time.Microsecond))
+		events = append(events, w.Message)
+
 	}
-	parts := strings.SplitN(l.Message.Method, ".", 2)
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("unknwon method %s", l.Message.Method)
-	}
-	l.Message.Domain = parts[0]
-	l.Message.Event = parts[1]
-	l.Message.Timestamp = time.Unix(0, int64(entry.TimeStamp*1000)*int64(time.Microsecond))
-	return l.Message, nil
+	return events, nil
 }
 
 type Request struct {

@@ -23,7 +23,6 @@ func parseHeaders(headers map[string]string) []*Header {
 }
 
 func EpochToTime(epoch float64) time.Time {
-	log.Printf("epoch time: %f = %s", epoch, time.Unix(0, int64(epoch*1000)*int64(time.Millisecond)))
 	return time.Unix(0, int64(epoch*1000)*int64(time.Millisecond))
 }
 
@@ -75,7 +74,6 @@ func CreateHARFromNotifications(events []*notifications.ChromeNotification) (*HA
 
 			//TODO: check if ther is a redirectResponse
 			if params.RedirectResponse != nil {
-				log.Printf("previous request %s, was redirected.", params.RequestId)
 				lastEntry := har.GetEntryByRequestId(params.RequestId)
 				lastEntry.RequestId = lastEntry.RequestId + "r"
 				ProcessResponse(lastEntry, params.Timestamp, params.RedirectResponse)
