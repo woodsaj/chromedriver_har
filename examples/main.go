@@ -40,7 +40,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = session.Url("https://www.google.com")
+	err = session.Url("https://www.raintank.io")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -62,6 +62,7 @@ func main() {
 	harJson, err := json.Marshal(har)
 	eventJson, err := json.Marshal(e)
 
-	ioutil.WriteFile("/tmp/chromdriver.har", harJson, 0644)
-	ioutil.WriteFile("/tmp/chromdriver.json", eventJson, 0644)
+	// write out the HAR file and the RAW chromeEvens to file
+	ioutil.WriteFile("./chromdriver.har", harJson, 0644)
+	ioutil.WriteFile("./chromdriver.json", eventJson, 0644)
 }

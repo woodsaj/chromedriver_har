@@ -78,6 +78,7 @@ func CreateHARFromEvents(chromeEvents []*events.ChromeEvent) (*HAR, error) {
 				lastEntry.RequestId = lastEntry.RequestId + "r"
 				ProcessResponse(lastEntry, params.Timestamp, params.RedirectResponse)
 				lastEntry.Response.RedirectUrl = params.Request.Url
+				lastEntry.Timings.Receive = 0.0
 			}
 
 			har.Log.Entries = append(har.Log.Entries, &entry)
@@ -136,10 +137,10 @@ func CreateHARFromEvents(chromeEvents []*events.ChromeEvent) (*HAR, error) {
 			if entry == nil {
 				log.Fatal("got a response event with no matching request event.")
 			}
-			entry.Response.BodySize = params.EncodedDataLength - int64(entry.Response.HeaderSize)
+			entry.Response.BodySize = params.EncodedDataLength - int64(entry.Response.HeadersSize)
 			entry.Response.Content.Compression = entry.Response.Content.Size - entry.Response.BodySize
 			entry.Time = (params.Timestamp - entry.Request.Timestamp) * 1000
-			entry.Timings.Receive = (params.Timestamp - entry.Response.Timestamp) * 1000.00
+			entry.Timings.Receive = (entry.Timings.Receive + params.Timestamp*1000)
 
 		case "Page.loadEventFired":
 			if len(har.Log.Pages) < 1 {
@@ -188,6 +189,7 @@ func ProcessResponse(entry *Entry, timestamp float64, response *events.Response)
 		Timestamp:   timestamp,
 	}
 	resp.SetHeadersSize()
+	resp.ParseCookies()
 	entry.Response = resp
 
 	entry.Response.Content = &ResponseContent{
@@ -224,7 +226,7 @@ func ProcessResponse(entry *Entry, timestamp float64, response *events.Response)
 		Connect: connect,
 		Send:    send,
 		Wait:    wait,
-		Receive: 0.0,
+		Receive: 0.0 - (response.Timing["requestTime"]*1000 + response.Timing["receiveHeadersEnd"]),
 		Ssl:     ssl,
 	}
 	entry.Timings = timings
@@ -302,12 +304,13 @@ type Request struct {
 	Headers     []*Header      `json:"headers"`
 	QueryString []*QueryString `json:"queryString"`
 	Cookies     []*Cookie      `json:"cookies"`
-	HeaderSize  int            `json:"headerSize"`
+	HeadersSize int            `json:"headersSize"`
 	BodySize    int            `json:"bodySize"`
 	Timestamp   float64        `json:"-"`
 }
 
 func (r *Request) ParseCookies() {
+	r.Cookies = make([]*Cookie, 0)
 	//check for a Cookie header
 	for _, h := range r.Headers {
 		if h.Name == "Cookie" {
@@ -322,6 +325,7 @@ func (r *Request) ParseCookies() {
 }
 
 func (r *Request) ParseQueryString() {
+	r.QueryString = make([]*QueryString, 0)
 	reqUrl, err := url.Parse(r.Url)
 	if err != nil {
 		log.Fatal("unable to parse request URL")
@@ -349,7 +353,7 @@ func (r *Request) SetHeadersSize() {
 		b.Write([]byte(fmt.Sprintf("%s: %s\r\n", h.Name, h.Value)))
 	}
 	b.Write([]byte("\r\n"))
-	r.HeaderSize = b.Len()
+	r.HeadersSize = b.Len()
 }
 
 type Response struct {
@@ -357,15 +361,16 @@ type Response struct {
 	StatusText  string           `json:"statusText"`
 	HttpVersion string           `json:"httpVersion"`
 	Headers     []*Header        `json:"headers"`
-	Cookies     []*SetCookie     `json:"cookies"`
+	Cookies     []*Cookie        `json:"cookies"`
 	Content     *ResponseContent `json:"content"`
-	RedirectUrl string           `json:"redirectUrl"`
-	HeaderSize  int              `json:"headerSize"`
+	RedirectUrl string           `json:"redirectURL"`
+	HeadersSize int              `json:"headersSize"`
 	BodySize    int64            `json:"bodySize"`
 	Timestamp   float64          `json:"-"`
 }
 
 func (r *Response) ParseCookies() {
+	r.Cookies = make([]*Cookie, 0)
 	//TODO: parse the response set-cookies header.
 	return
 }
@@ -377,7 +382,7 @@ func (r *Response) SetHeadersSize() {
 		b.Write([]byte(fmt.Sprintf("%s: %s\r\n", h.Name, h.Value)))
 	}
 	b.Write([]byte("\r\n"))
-	r.HeaderSize = b.Len()
+	r.HeadersSize = b.Len()
 }
 
 type Header struct {
@@ -391,11 +396,6 @@ type QueryString struct {
 }
 
 type Cookie struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
-}
-
-type SetCookie struct {
 	Name     string    `json:"name"`
 	Value    string    `json:"value"`
 	Domain   string    `json:"domain"`
