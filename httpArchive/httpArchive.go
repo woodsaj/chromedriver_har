@@ -63,6 +63,14 @@ func CreateHARFromEvents(chromeEvents []*events.ChromeEvent) (*HAR, error) {
 			}
 
 			req.BodySize = len(params.Request.PostData)
+			if req.BodySize > 0 {
+				mimeType := params.Request.Headers["Content-Type"]
+				postData := &PostData{
+					MimeType: mimeType,
+					Text: params.Request.PostData,
+				}
+				req.PostData = postData
+			}
 
 			req.ParseQueryString()
 			entry := Entry{
@@ -306,7 +314,13 @@ type Request struct {
 	Cookies     []*Cookie      `json:"cookies"`
 	HeadersSize int            `json:"headersSize"`
 	BodySize    int            `json:"bodySize"`
+	PostData    *PostData      `json:"postData"`
 	Timestamp   float64        `json:"-"`
+}
+
+type PostData struct {
+	MimeType string `json:"mimeType"`
+	Text     string `json:"text"`
 }
 
 func (r *Request) ParseCookies() {
