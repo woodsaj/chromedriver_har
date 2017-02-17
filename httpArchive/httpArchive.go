@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sophisticasean/chromedriver_har/events"
+	"github.com/woodsaj/chromedriver_har/events"
 )
 
 func parseHeaders(headers map[string]string) []*Header {
