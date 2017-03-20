@@ -144,6 +144,9 @@ func CreateHARFromEvents(chromeEvents []*events.ChromeEvent) (*HAR, error) {
 			if entry.Timings.Receive < 0.0 {
 				entry.Timings.Receive = 0.0
 			}
+			if entry.Timings.Receive > entry.Time {
+				entry.Timings.Receive = entry.Time
+			}
 
 		case "Page.loadEventFired":
 			if len(har.Log.Pages) < 1 {
