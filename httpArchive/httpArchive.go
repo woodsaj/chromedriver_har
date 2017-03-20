@@ -141,6 +141,9 @@ func CreateHARFromEvents(chromeEvents []*events.ChromeEvent) (*HAR, error) {
 			entry.Response.Content.Compression = entry.Response.Content.Size - entry.Response.BodySize
 			entry.Time = (params.Timestamp - entry.Request.Timestamp) * 1000
 			entry.Timings.Receive = (entry.Timings.Receive + params.Timestamp*1000)
+			if entry.Timings.Receive < 0.0 {
+				entry.Timings.Receive = 0.0
+			}
 
 		case "Page.loadEventFired":
 			if len(har.Log.Pages) < 1 {
@@ -230,6 +233,9 @@ func ProcessResponse(entry *Entry, timestamp float64, response *events.Response)
 		Ssl:     ssl,
 	}
 	entry.Timings = timings
+	if entry.Timings.Receive < 0.0 {
+		entry.Timings.Receive = 0.0
+	}
 }
 
 type HAR struct {
