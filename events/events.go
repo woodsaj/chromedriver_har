@@ -2,8 +2,10 @@ package events
 
 import (
 	"encoding/json"
-	"github.com/fedesog/webdriver"
+	"errors"
 	"time"
+
+	"github.com/fedesog/webdriver"
 )
 
 type ChromeEvent struct {
@@ -27,6 +29,12 @@ func NewFromLogEntries(entries []webdriver.LogEntry) ([]*ChromeEvent, error) {
 		w.Message.Timestamp = time.Unix(0, int64(entry.TimeStamp*1000)*int64(time.Microsecond))
 		events = append(events, w.Message)
 
+	}
+	//if len(entries) != len(events) {
+	//err := error{""}
+	//}
+	if len(events) == 0 {
+		return events, errors.New("Failed to make events.")
 	}
 	return events, nil
 }

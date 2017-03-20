@@ -3,12 +3,14 @@ package httpArchive
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/woodsaj/chromedriver_har/events"
 	"log"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/woodsaj/chromedriver_har/events"
 )
 
 func parseHeaders(headers map[string]string) []*Header {
@@ -47,55 +49,51 @@ func CreateHARFromEvents(chromeEvents []*events.ChromeEvent) (*HAR, error) {
 			page.Id = har.CurrentPageId()
 		case "Network.requestWillBeSent":
 			if len(har.Log.Pages) < 1 {
-				log.Fatal("Sending request object, but frame not started.")
-			}
-			//new HTTP request
-			params := events.NetworkRequestWillBeSent{}
-			err := json.Unmarshal(e.Params, &params)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			req := &Request{
-				Method:    params.Request.Method,
-				Url:       params.Request.Url,
-				Timestamp: params.Timestamp,
-			}
-
-			req.BodySize = len(params.Request.PostData)
-			if req.BodySize > 0 {
-				mimeType := params.Request.Headers["Content-Type"]
-				postData := &PostData{
-					MimeType: mimeType,
-					Text: params.Request.PostData,
+				fmt.Println("Sending request object, but frame not started.")
+				return &har, errors.New("Sending request object, but frame not started.")
+			} else {
+				//new HTTP request
+				params := events.NetworkRequestWillBeSent{}
+				err := json.Unmarshal(e.Params, &params)
+				if err != nil {
+					log.Fatal(err)
 				}
-				req.PostData = postData
-			}
 
-			req.ParseQueryString()
-			entry := Entry{
-				StartedDateTime: EpochToTime(params.WallTime), //epoch float64, eg 1440589909.59248
-				RequestId:       params.RequestId,
-				Pageref:         har.CurrentPageId(),
-				Request:         req,
-			}
+				req := &Request{
+					Method:    params.Request.Method,
+					Url:       params.Request.Url,
+					Timestamp: params.Timestamp,
+				}
 
-			//TODO: check if ther is a redirectResponse
-			if params.RedirectResponse != nil {
-				lastEntry := har.GetEntryByRequestId(params.RequestId)
-				lastEntry.RequestId = lastEntry.RequestId + "r"
-				ProcessResponse(lastEntry, params.Timestamp, params.RedirectResponse)
-				lastEntry.Response.RedirectUrl = params.Request.Url
-				lastEntry.Timings.Receive = 0.0
-			}
+				req.BodySize = len(params.Request.PostData)
 
-			har.Log.Entries = append(har.Log.Entries, &entry)
+				req.ParseQueryString()
+				entry := Entry{
+					StartedDateTime: EpochToTime(params.WallTime), //epoch float64, eg 1440589909.59248
+					RequestId:       params.RequestId,
+					Pageref:         har.CurrentPageId(),
+					Request:         req,
+				}
 
-			page := har.CurrentPage()
-			// if this is the primary page, set the Page.Title to the request URL
-			if page.Title == "" {
-				page.Title = req.Url
-				page.Timestamp = params.Timestamp
+				//TODO: check if ther is a redirectResponse
+				if params.RedirectResponse != nil {
+					lastEntry := har.GetEntryByRequestId(params.RequestId)
+					if lastEntry != nil {
+						lastEntry.RequestId = lastEntry.RequestId + "r"
+						ProcessResponse(lastEntry, params.Timestamp, params.RedirectResponse)
+						lastEntry.Response.RedirectUrl = params.Request.Url
+						lastEntry.Timings.Receive = 0.0
+					}
+				}
+
+				har.Log.Entries = append(har.Log.Entries, &entry)
+
+				page := har.CurrentPage()
+				// if this is the primary page, set the Page.Title to the request URL
+				if page.Title == "" {
+					page.Title = req.Url
+					page.Timestamp = params.Timestamp
+				}
 			}
 
 		case "Network.responseReceived":
@@ -110,9 +108,11 @@ func CreateHARFromEvents(chromeEvents []*events.ChromeEvent) (*HAR, error) {
 			}
 			entry := har.GetEntryByRequestId(params.RequestId)
 			if entry == nil {
-				log.Fatal("got a response event with no matching request event.")
+				//log.Fatal("got a response event with no matching request event.")
+				fmt.Println("got a response event with no matching request event.")
+			} else {
+				ProcessResponse(entry, params.Timestamp, params.Response)
 			}
-			ProcessResponse(entry, params.Timestamp, params.Response)
 
 		case "Network.dataReceived":
 			if len(har.Log.Pages) < 1 {
@@ -126,10 +126,11 @@ func CreateHARFromEvents(chromeEvents []*events.ChromeEvent) (*HAR, error) {
 			}
 			entry := har.GetEntryByRequestId(params.RequestId)
 			if entry == nil {
-				log.Fatal("got a response event with no matching request event.")
+				//log.Fatal("got a response event with no matching request event.")
+				fmt.Println("got a response event with no matching request event.")
+			} else {
+				entry.Response.Content.Size += params.DataLength
 			}
-
-			entry.Response.Content.Size += params.DataLength
 
 		case "Network.loadingFinished":
 			if len(har.Log.Pages) < 1 {
@@ -143,12 +144,14 @@ func CreateHARFromEvents(chromeEvents []*events.ChromeEvent) (*HAR, error) {
 			}
 			entry := har.GetEntryByRequestId(params.RequestId)
 			if entry == nil {
-				log.Fatal("got a response event with no matching request event.")
+				//log.Fatal("got a response event with no matching request event.")
+				fmt.Println("got a response event with no matching request event.")
+			} else {
+				entry.Response.BodySize = params.EncodedDataLength - int64(entry.Response.HeadersSize)
+				entry.Response.Content.Compression = entry.Response.Content.Size - entry.Response.BodySize
+				entry.Time = (params.Timestamp - entry.Request.Timestamp) * 1000
+				entry.Timings.Receive = (entry.Timings.Receive + params.Timestamp*1000)
 			}
-			entry.Response.BodySize = params.EncodedDataLength - int64(entry.Response.HeadersSize)
-			entry.Response.Content.Compression = entry.Response.Content.Size - entry.Response.BodySize
-			entry.Time = (params.Timestamp - entry.Request.Timestamp) * 1000
-			entry.Timings.Receive = (entry.Timings.Receive + params.Timestamp*1000)
 
 		case "Page.loadEventFired":
 			if len(har.Log.Pages) < 1 {
@@ -342,15 +345,17 @@ func (r *Request) ParseQueryString() {
 	r.QueryString = make([]*QueryString, 0)
 	reqUrl, err := url.Parse(r.Url)
 	if err != nil {
-		log.Fatal("unable to parse request URL")
-	}
+		//log.Fatal("unable to parse request URL")
+		fmt.Println("unable to parse request URL: ", r.Url)
+	} else {
 
-	for k, v := range reqUrl.Query() {
-		for _, value := range v {
-			r.QueryString = append(r.QueryString, &QueryString{
-				Name:  k,
-				Value: value,
-			})
+		for k, v := range reqUrl.Query() {
+			for _, value := range v {
+				r.QueryString = append(r.QueryString, &QueryString{
+					Name:  k,
+					Value: value,
+				})
+			}
 		}
 	}
 }
@@ -359,15 +364,17 @@ func (r *Request) SetHeadersSize() {
 	var b bytes.Buffer
 	reqUrl, err := url.Parse(r.Url)
 	if err != nil {
-		log.Fatal("unable to parse request URL")
-	}
+		//log.Fatal("unable to parse request URL")
+		fmt.Println("unable to parse request URL: ", r.Url)
+	} else {
 
-	b.Write([]byte(fmt.Sprintf("%s %s %s\r\n", r.Method, reqUrl.RequestURI(), r.HttpVersion)))
-	for _, h := range r.Headers {
-		b.Write([]byte(fmt.Sprintf("%s: %s\r\n", h.Name, h.Value)))
+		b.Write([]byte(fmt.Sprintf("%s %s %s\r\n", r.Method, reqUrl.RequestURI(), r.HttpVersion)))
+		for _, h := range r.Headers {
+			b.Write([]byte(fmt.Sprintf("%s: %s\r\n", h.Name, h.Value)))
+		}
+		b.Write([]byte("\r\n"))
+		r.HeadersSize = b.Len()
 	}
-	b.Write([]byte("\r\n"))
-	r.HeadersSize = b.Len()
 }
 
 type Response struct {
